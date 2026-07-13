@@ -1,0 +1,31 @@
+# ── Milestone 1 (Foundation) ─────────────────────────────────────────
+# LangChain is wired into the foundation: prompts are ChatPromptTemplates and
+# every LLM call runs as a LangChain chain (prompt | model | parser), offline
+# via the MockLLM runnable or online via Claude. Install before running:
+#     pip install -r requirements.txt
+# ──────────────────────────────────────────────────────────────────────
+
+# Core LLM + prompt/chain framework (used now, Milestone 1)
+langchain-core>=0.3             # ChatPromptTemplate, Runnable, StrOutputParser
+langchain>=0.3
+langchain-anthropic>=0.3        # Claude provider (LLM_PROVIDER=anthropic)
+# langchain-openai>=0.2         # optional alternate provider
+
+# Orchestration (Milestone 4)
+langgraph>=0.2
+
+pydantic>=2.7
+python-dotenv>=1.0
+
+# Memory / RAG (Milestone 3)
+chromadb>=0.5
+
+# API layer (Milestone 4)
+fastapi>=0.111
+uvicorn>=0.30
+
+# Dashboard (Milestone 5)
+streamlit>=1.36
+
+# Testing
+pytest>=8.0
