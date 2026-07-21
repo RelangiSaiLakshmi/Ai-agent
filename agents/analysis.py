@@ -10,6 +10,7 @@ from datetime import date
 
 from agents.base import BaseAgent
 from schemas.state import AnalysisResult, LeaveState
+from tools.connectors import holiday_calendar
 
 
 def _working_days_between(from_date: date, to_date: date) -> int:
@@ -65,6 +66,12 @@ class AnalysisAgent(BaseAgent):
             flags.append(f"overlaps({len(bal.overlaps)})")
         if pol.manager_required:
             flags.append("manager_approval_required")
+
+        # Informational only: company holidays inside the range don't consume
+        # leave, so surface them for the responder/manager without blocking.
+        holidays = holiday_calendar.holidays_between(req.start_date, req.end_date)
+        if holidays:
+            flags.append(f"company_holidays_in_range({', '.join(h.name for h in holidays)})")
 
         state.analysis = AnalysisResult(
             balance_ok=balance_ok,
