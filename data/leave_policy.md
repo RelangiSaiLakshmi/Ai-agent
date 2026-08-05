@@ -1,8 +1,10 @@
 # Company Leave Policy (Sample)
 
-This document is the human-readable policy. In Milestone 3 it will also be chunked
-and embedded into a vector store so the Policy agent can retrieve passages (RAG).
-For Milestone 1 the structured rules live in the `policy_rules` table.
+This document is the human-readable policy; the structured rules the agents
+enforce live in the `policy_rules` table. (Chunking/embedding this text into a
+vector store for RAG was considered for Milestone 3 but deferred — the M3 doc
+scopes memory as conversational + long-term retention, not document RAG — so it
+remains optional future work behind the `LongTermMemory` seam.)
 
 ## Leave Types
 
