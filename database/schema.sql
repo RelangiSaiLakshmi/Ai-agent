@@ -48,3 +48,26 @@ CREATE TABLE IF NOT EXISTS policy_rules (
     manager_required  INTEGER,         -- 0/1
     notes             TEXT
 );
+
+-- Long-term knowledge retention (Milestone 3): one row per completed
+-- interaction, so agents can recall an employee's leave history across
+-- requests for context-aware decisions. This is the persistent half of the
+-- shared memory repository; short-term conversational memory lives on the
+-- in-flight LeaveState.
+CREATE TABLE IF NOT EXISTS interaction_memory (
+    memory_id     TEXT PRIMARY KEY,
+    employee_id   TEXT REFERENCES employees(employee_id),
+    request_id    TEXT,
+    leave_type    TEXT,
+    start_date    DATE,
+    end_date      DATE,
+    days_requested REAL,
+    outcome       TEXT,                -- APPROVE | REJECT | ESCALATE
+    confidence    REAL,
+    summary       TEXT,                -- human-readable recap of the interaction
+    flags_json    TEXT,                -- eligibility flags captured at decision time
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_interaction_memory_employee
+    ON interaction_memory (employee_id, created_at);

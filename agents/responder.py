@@ -14,6 +14,7 @@ from schemas.state import LeaveState, Outcome
 
 class ResponderAgent(BaseAgent):
     name = "responder"
+    role = "response"  # Response Agent (project-doc role)
 
     def run(self, state: LeaveState) -> LeaveState:
         dec = state.decision
@@ -42,6 +43,6 @@ class ResponderAgent(BaseAgent):
 
         polished = self.llm.complete(draft, system=get_prompt("responder"), task="polish")
         state.draft_response = polished
-        state.messages.append({"role": "assistant", "content": polished})
+        self.remember(state, "assistant", polished)  # short-term conversational memory
         self.log(state, "Final response generated.")
         return state

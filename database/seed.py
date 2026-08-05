@@ -48,9 +48,12 @@ def seed(db_path: str | None = None) -> None:
     try:
         init_schema(conn)
         # Clear transactional tables so re-seeding gives a clean, deterministic
-        # slate (reference tables below use INSERT OR REPLACE).
+        # slate (reference tables below use INSERT OR REPLACE). interaction_memory
+        # is long-term memory (M3) and must be reset too, or stale history from a
+        # previous run leaks into a fresh demo and makes recall non-deterministic.
         conn.execute("DELETE FROM decisions")
         conn.execute("DELETE FROM leave_requests")
+        conn.execute("DELETE FROM interaction_memory")
         conn.executemany(
             "INSERT OR REPLACE INTO employees "
             "(employee_id, name, email, department, manager_id, join_date) "

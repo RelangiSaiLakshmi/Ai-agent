@@ -12,6 +12,7 @@ PLANNED_SEQUENCE = ["policy", "employee_data", "analysis", "decision", "notifica
 
 class CoordinatorAgent(BaseAgent):
     name = "coordinator"
+    role = "planning"  # Planning Agent (project-doc role)
 
     def run(self, state: LeaveState) -> LeaveState:
         req = state.request
@@ -38,6 +39,13 @@ class CoordinatorAgent(BaseAgent):
             }
         )
         state.status = Status.IN_PROGRESS
+        # Broadcast the plan on the inter-agent bus so downstream specialists
+        # know the agreed execution order (explicit coordination, M3).
+        self.post(
+            state,
+            f"Plan for {req.request_id}: {' -> '.join(PLANNED_SEQUENCE)}",
+            kind="plan",
+        )
         self.log(
             state,
             f"Request {req.request_id}: {req.employee_id} wants {days} day(s) of "

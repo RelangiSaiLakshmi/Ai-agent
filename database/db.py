@@ -121,3 +121,37 @@ def save_decision(conn: sqlite3.Connection, decision: dict[str, Any]) -> None:
         decision,
     )
     conn.commit()
+
+
+# ── Long-term memory helpers (Milestone 3) ───────────────────────────────────
+
+def save_interaction(conn: sqlite3.Connection, memory: dict[str, Any]) -> None:
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO interaction_memory
+            (memory_id, employee_id, request_id, leave_type, start_date,
+             end_date, days_requested, outcome, confidence, summary, flags_json)
+        VALUES (:memory_id, :employee_id, :request_id, :leave_type, :start_date,
+                :end_date, :days_requested, :outcome, :confidence, :summary, :flags_json)
+        """,
+        memory,
+    )
+    conn.commit()
+
+
+def fetch_interactions(
+    conn: sqlite3.Connection, employee_id: str, limit: int = 5
+) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        """
+        SELECT memory_id, employee_id, request_id, leave_type, start_date,
+               end_date, days_requested, outcome, confidence, summary,
+               flags_json, created_at
+        FROM interaction_memory
+        WHERE employee_id = ?
+        ORDER BY created_at DESC, rowid DESC
+        LIMIT ?
+        """,
+        (employee_id, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]

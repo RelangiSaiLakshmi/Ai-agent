@@ -21,6 +21,7 @@ from tools.langchain_tools import EMPLOYEE_DATA_TOOLS
 
 class EmployeeDataAgent(BaseAgent):
     name = "employee_data"
+    role = "research"  # Research Agent — employee/balance retrieval (project-doc role)
 
     def _grounded(self, loop: ToolLoopResult, tool_name: str, fallback, *args) -> Any:
         """Take `tool_name`'s result from the loop, or re-fetch it directly."""
@@ -94,6 +95,13 @@ class EmployeeDataAgent(BaseAgent):
             days_requested=days_requested,
             after_balance=available - days_requested,
             overlaps=overlaps,
+        )
+        self.post(
+            state,
+            f"{state.employee.name}: {available:.0f} {req.leave_type} day(s) available, "
+            f"requesting {days_requested}, {len(overlaps)} overlap(s).",
+            to="analysis",
+            kind="finding",
         )
         self.log(
             state,

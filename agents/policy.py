@@ -5,7 +5,11 @@ select and invoke them (native tool calling); the state is grounded in the
 recorded tool results, never in model prose. If the loop fails to produce a
 usable result, the agent falls back to calling the tool directly, so the
 workflow degrades gracefully instead of stalling.
-Milestone 3: will additionally retrieve policy passages from a vector store (RAG).
+Milestone 3: tagged as a Research-role agent; it posts its policy finding to the
+inter-agent bus addressed to the Analysis agent (explicit coordination). Semantic
+retrieval of policy passages (RAG/vector store) is out of the M3 scope — the doc
+scopes memory as short-term conversational + long-term retention — and can slot in
+behind ``LongTermMemory`` later without touching this agent.
 """
 from __future__ import annotations
 
@@ -20,6 +24,7 @@ from tools.langchain_tools import POLICY_TOOLS
 
 class PolicyAgent(BaseAgent):
     name = "policy"
+    role = "research"  # Research Agent — policy retrieval (project-doc role)
 
     def _fetch_policy(self, state: LeaveState, leave_type: str) -> dict | None:
         """Fetch the policy via the LLM tool-calling loop, validated, with a
@@ -70,6 +75,14 @@ class PolicyAgent(BaseAgent):
             requires_docs=bool(row["requires_docs"]),
             manager_required=bool(row["manager_required"]),
             notes=row.get("notes", ""),
+        )
+        self.post(
+            state,
+            f"Policy for '{leave_type}': max {state.policy.max_days_per_year}d/yr, "
+            f"notice {state.policy.min_notice_days}d, "
+            f"manager_required={state.policy.manager_required}.",
+            to="analysis",
+            kind="finding",
         )
         self.log(
             state,

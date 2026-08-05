@@ -102,6 +102,23 @@ class Decision:
 
 
 @dataclass
+class AgentMessage:
+    """One message on the inter-agent bus (Milestone 3).
+
+    Agents post structured messages here to share findings explicitly, rather
+    than only mutating the shared state implicitly. ``to="all"`` broadcasts.
+    """
+    sender: str                        # agent name that posted the message
+    role: str                          # sender's business role (planning/research/...)
+    content: str
+    to: str = "all"                    # recipient agent name, or "all"
+    kind: str = "update"              # update | finding | decision | plan | alert
+
+    def to_dict(self) -> dict[str, str]:
+        return asdict(self)
+
+
+@dataclass
 class LeaveState:
     request: LeaveRequest
     employee: EmployeeRecord | None = None
@@ -110,7 +127,9 @@ class LeaveState:
     analysis: AnalysisResult | None = None
     decision: Decision | None = None
     draft_response: str | None = None
-    messages: list[dict[str, str]] = field(default_factory=list)   # short-term memory
+    messages: list[dict[str, str]] = field(default_factory=list)   # short-term conversational memory
+    agent_messages: list[dict[str, str]] = field(default_factory=list)  # inter-agent bus (M3)
+    history: list[dict[str, Any]] = field(default_factory=list)     # recalled long-term memory (M3)
     status: str = Status.RECEIVED
     logs: list[dict[str, str]] = field(default_factory=list)
     created_at: str = field(

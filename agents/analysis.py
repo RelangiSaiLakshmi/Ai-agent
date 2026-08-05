@@ -28,9 +28,19 @@ def _working_days_between(from_date: date, to_date: date) -> int:
 
 class AnalysisAgent(BaseAgent):
     name = "analysis"
+    role = "analysis"  # Analysis Agent (project-doc role)
 
     def run(self, state: LeaveState) -> LeaveState:
         flags: list[str] = []
+
+        # Coordination: acknowledge the findings the Research agents posted.
+        received = self.inbox(state)
+        if received:
+            self.log(
+                state,
+                f"Read {len(received)} bus message(s) from "
+                f"{sorted({m['sender'] for m in received})}.",
+            )
 
         # Missing data is a hard failure -> everything false, flag it.
         if state.employee is None or state.balance is None or state.policy is None:
@@ -73,6 +83,15 @@ class AnalysisAgent(BaseAgent):
         if holidays:
             flags.append(f"company_holidays_in_range({', '.join(h.name for h in holidays)})")
 
+        # Context-aware signal from long-term memory (recalled into state.history
+        # by the workflow). Informational only — it does not flip the outcome,
+        # it gives the Decision agent and manager historical context.
+        prior = [h for h in state.history if h.get("request_id") != req.request_id]
+        if prior:
+            prior_esc = sum(1 for h in prior if h.get("outcome") == "ESCALATE")
+            prior_rej = sum(1 for h in prior if h.get("outcome") == "REJECT")
+            flags.append(f"history({len(prior)} prior: {prior_esc} escalated, {prior_rej} rejected)")
+
         state.analysis = AnalysisResult(
             balance_ok=balance_ok,
             notice_ok=notice_ok,
@@ -80,6 +99,13 @@ class AnalysisAgent(BaseAgent):
             within_max=within_max,
             docs_ok=docs_ok,
             flags=flags,
+        )
+        self.post(
+            state,
+            f"Eligibility: balance_ok={balance_ok}, notice_ok={notice_ok}, "
+            f"no_overlap={no_overlap}, within_max={within_max}; flags={flags or 'none'}.",
+            to="decision",
+            kind="finding",
         )
         self.log(
             state,

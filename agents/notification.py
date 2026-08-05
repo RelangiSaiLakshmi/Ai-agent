@@ -15,6 +15,7 @@ from tools import leave_tools
 
 class NotificationAgent(BaseAgent):
     name = "notification"
+    role = "execution"  # executes the decision: persist + notify (project-doc role)
 
     def run(self, state: LeaveState) -> LeaveState:
         if state.decision is None:
@@ -44,4 +45,30 @@ class NotificationAgent(BaseAgent):
         self.log(state, f"Decision persisted; status -> {new_status}. (mock) notified {recipient}.")
         if dec.outcome == Outcome.ESCALATE and state.employee and state.employee.manager_id:
             self.log(state, f"(mock) escalation sent to manager {state.employee.manager_id}.")
+
+        # Long-term memory: retain this interaction so future requests by the
+        # same employee carry historical context. Only the write-privileged
+        # Notification agent persists memory (least privilege, as in M2).
+        self._retain(state, dec, req)
         return state
+
+    def _retain(self, state: LeaveState, dec, req) -> None:
+        if self.memory is None:
+            return
+        flags = state.analysis.flags if state.analysis else []
+        try:
+            self.memory.long_term.record_interaction(
+                employee_id=req.employee_id,
+                request_id=req.request_id,
+                leave_type=req.leave_type,
+                start_date=req.start_date,
+                end_date=req.end_date,
+                days_requested=float(req.days_span()),
+                outcome=dec.outcome,
+                confidence=dec.confidence,
+                summary=f"{req.leave_type} {req.start_date}..{req.end_date}: {dec.outcome}.",
+                flags=flags,
+            )
+            self.log(state, "Interaction retained in long-term memory.")
+        except Exception as exc:  # memory write must not break the workflow
+            self.log(state, f"Long-term memory write skipped ({type(exc).__name__}: {exc}).")

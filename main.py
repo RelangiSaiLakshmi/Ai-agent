@@ -43,6 +43,23 @@ def _print_result(state: LeaveState) -> None:
         print(f"REASON  : {d.rationale}")
         print(f"CRITERIA: {d.criteria_scores}")
     print(f"STATUS  : {state.status}")
+
+    # Milestone 3: make coordination + memory visible so a collaborative run can
+    # be validated from the CLI, not only from the debug logs.
+    if state.history:
+        print("-" * 68)
+        print(f"MEMORY CONTEXT (recalled {len(state.history)} prior interaction(s)):")
+        for h in state.history:
+            print(
+                f"  · {h['created_at']}  {h['leave_type']} "
+                f"{h['start_date']}..{h['end_date']} -> {h['outcome']}"
+            )
+    if state.agent_messages:
+        print("-" * 68)
+        print(f"COORDINATION (inter-agent bus, {len(state.agent_messages)} message(s)):")
+        for m in state.agent_messages:
+            print(f"  [{m['role']}] {m['sender']} -> {m['to']} ({m['kind']}): {m['content']}")
+
     print("-" * 68)
     print("RESPONSE TO EMPLOYEE:")
     print(state.draft_response or "(none)")

@@ -1,9 +1,12 @@
-"""Sequential multi-agent runner (Milestone 1).
+"""Sequential multi-agent runner (Milestones 1 & 3).
 
-Runs the agents in a fixed order and returns the final state. This is the
-foundational "interaction workflow" from Milestone 1. In Milestone 4 it is
-replaced by a LangGraph graph with conditional edges + human-in-the-loop, while
-the agent classes themselves stay unchanged.
+Runs the specialized agents in a fixed order and returns the final state. This
+is the foundational "interaction workflow" from Milestone 1. Milestone 3 threads
+a shared memory repository through the run: long-term history is recalled up
+front so the Analysis/Decision agents have context, short-term memory is bound
+to the request, and the interaction is retained at the end. In Milestone 4 this
+runner is replaced by a LangGraph graph with conditional edges +
+human-in-the-loop, while the agent classes themselves stay unchanged.
 """
 from __future__ import annotations
 
@@ -18,6 +21,7 @@ from agents import (
 )
 from agents.base import BaseAgent
 from llm.base import BaseLLM
+from memory import SharedMemory, default_memory
 from schemas.state import LeaveRequest, LeaveState, Status
 from utils.logging import AgentLogger
 
@@ -33,17 +37,31 @@ AGENT_ORDER = [
 ]
 
 
-def build_agents(llm: BaseLLM, logger: AgentLogger | None = None) -> list[BaseAgent]:
+def build_agents(
+    llm: BaseLLM,
+    logger: AgentLogger | None = None,
+    memory: SharedMemory | None = None,
+) -> list[BaseAgent]:
     logger = logger or AgentLogger()
-    return [cls(llm=llm, logger=logger) for cls in AGENT_ORDER]
+    return [cls(llm=llm, logger=logger, memory=memory) for cls in AGENT_ORDER]
 
 
 def run_leave_workflow(
-    request: LeaveRequest, llm: BaseLLM, logger: AgentLogger | None = None
+    request: LeaveRequest,
+    llm: BaseLLM,
+    logger: AgentLogger | None = None,
+    memory: SharedMemory | None = None,
 ) -> LeaveState:
     logger = logger or AgentLogger()
+    memory = memory or default_memory()
+
     state = LeaveState(request=request)
-    for agent in build_agents(llm, logger):
+    memory.bind(state)  # short-term memory is scoped to this request
+
+    # Recall long-term memory up front so context-aware agents can use it.
+    state.history = memory.long_term.history(request.employee_id, limit=5)
+
+    for agent in build_agents(llm, logger, memory):
         state = agent.run(state)
         if state.status == Status.FAILED:
             logger.step(state, "pipeline", "Halting: state marked FAILED.")

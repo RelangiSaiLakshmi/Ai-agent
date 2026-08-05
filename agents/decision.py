@@ -13,8 +13,14 @@ from schemas.state import Decision, LeaveState, Outcome
 
 class DecisionAgent(BaseAgent):
     name = "decision"
+    role = "decision"  # Decision Agent (project-doc role)
 
     def run(self, state: LeaveState) -> LeaveState:
+        # Coordination: pull the analysis finding off the bus (information
+        # exchange), and historical context from long-term memory.
+        for msg in self.inbox(state):
+            self.log(state, f"Considering {msg['sender']} finding: {msg['content']}")
+
         a = state.analysis
         pol = state.policy
         if a is None or pol is None:
@@ -62,11 +68,19 @@ class DecisionAgent(BaseAgent):
                 "All eligibility criteria satisfied; auto-approved.",
             )
 
+        # Context-aware note from long-term memory (non-blocking): surface the
+        # employee's recent pattern in the rationale for auditability.
+        prior = [h for h in state.history if h.get("request_id") != state.request.request_id]
+        if prior:
+            last = prior[0].get("outcome")
+            rationale = f"{rationale} (Context: {len(prior)} prior request(s), most recent {last}.)"
+
         state.decision = Decision(
             outcome=outcome,
             confidence=confidence,
             rationale=rationale,
             criteria_scores=criteria,
         )
+        self.post(state, f"Decision: {outcome} (confidence {confidence:.2f}).", kind="decision")
         self.log(state, f"{outcome} (confidence {confidence:.2f}) — {rationale}")
         return state
