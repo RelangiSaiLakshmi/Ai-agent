@@ -53,6 +53,38 @@ def get_policy(leave_type: str, db_path: str | None = None) -> dict[str, Any] | 
         conn.close()
 
 
+def get_request(request_id: str, db_path: str | None = None) -> dict[str, Any] | None:
+    conn = db.get_connection(db_path)
+    try:
+        return db.fetch_request(conn, request_id)
+    finally:
+        conn.close()
+
+
+def get_latest_decision(request_id: str, db_path: str | None = None) -> dict[str, Any] | None:
+    conn = db.get_connection(db_path)
+    try:
+        return db.fetch_latest_decision(conn, request_id)
+    finally:
+        conn.close()
+
+
+def get_all_balances(employee_id: str, db_path: str | None = None) -> list[dict[str, Any]]:
+    conn = db.get_connection(db_path)
+    try:
+        return db.fetch_all_balances(conn, employee_id)
+    finally:
+        conn.close()
+
+
+def list_requests_by_status(status: str, db_path: str | None = None) -> list[dict[str, Any]]:
+    conn = db.get_connection(db_path)
+    try:
+        return db.list_requests_by_status(conn, status)
+    finally:
+        conn.close()
+
+
 def record_request(req: dict[str, Any], db_path: str | None = None) -> None:
     conn = db.get_connection(db_path)
     try:

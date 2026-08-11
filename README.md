@@ -3,8 +3,10 @@
 A multi-agent AI system that processes employee leave requests end to end.
 Seven specialized agents collaborate — checking policy, balances, and
 eligibility — to automatically **APPROVE, REJECT, or ESCALATE** a request and
-write the response to the employee. Built on **LangChain**; runs fully offline
-via a deterministic mock LLM, or online with Claude (`LLM_PROVIDER=anthropic`).
+write the response to the employee. Orchestrated with **LangGraph**, exposed
+over a **FastAPI** REST layer with a **Streamlit** monitoring dashboard. Built
+on **LangChain**; runs fully offline via a deterministic mock LLM, or online
+with Claude (`LLM_PROVIDER=anthropic`).
 
 ## Quick start
 
@@ -14,11 +16,21 @@ pip install -r requirements.txt
 
 python main.py --init-db     # create + seed the SQLite database
 python main.py --list        # show seeded employees
-python main.py --demo        # run APPROVE / REJECT / ESCALATE scenarios
+python main.py --demo        # run APPROVE / REJECT / ESCALATE scenarios (LangGraph)
 python main.py --employee-id E004 --leave-type casual \
                --start 2026-07-27 --end 2026-07-29 --reason "wedding"
+python main.py --demo --sequential   # same, via the M1/M3 linear runner
 
-pytest tests/ -v             # 36 tests
+pytest tests/ -v             # 55 tests
+```
+
+### REST API + dashboard (Milestone 4)
+
+```bash
+uvicorn api.app:app --reload            # REST API → http://127.0.0.1:8000/docs
+streamlit run frontend/dashboard.py     # dashboard → http://127.0.0.1:8501
+docker compose up --build               # both, containerized (shared SQLite volume)
+python -m perf.benchmark --iterations 200   # throughput / latency benchmark
 ```
 
 > Re-run `--init-db` before demos: each run persists its request, so a repeat
@@ -44,7 +56,13 @@ Coordinator ─▶ Policy ─▶ EmployeeData ─▶ Analysis ─▶ Decision �
   execution / response).
 - `memory/` — short-term (conversation + agent bus) and long-term (per-employee
   history) memory behind a shared `SharedMemory` repository (Milestone 3).
-- `workflows/pipeline.py` — sequential orchestrator (LangGraph planned).
+- `workflows/graph.py` — **LangGraph** orchestration (Milestone 4): the agents
+  as graph nodes with conditional edges (validation gate + human-in-the-loop
+  `manager_review` node). `workflows/pipeline.py` keeps the equivalent
+  sequential runner as a reference; `workflows/service.py` is the shared
+  application layer the API and dashboard both call.
+- `api/app.py` — **FastAPI** REST layer; `frontend/dashboard.py` — **Streamlit**
+  monitoring dashboard; `perf/benchmark.py` — performance benchmark.
 - `tools/` — tool layer: SQLite read/write tools (`leave_tools.py`), LangChain
   `@tool` wrappers with JSON schemas (`langchain_tools.py`), and enterprise
   API connectors (`connectors.py`, offline-first holiday calendar).
@@ -98,6 +116,38 @@ Long-term memory is offline-first (SQLite), matching the M1/M2 architecture; a
 vector-store-backed semantic recall can slot in behind `LongTermMemory` later
 without touching agent code.
 
+### Workflow automation, API & deployment (Milestone 4)
+
+The sequential pipeline is promoted to a **LangGraph** `StateGraph`
+(`workflows/graph.py`) with real decision points — the agent classes are
+unchanged:
+
+```
+        ┌── invalid ──────────────────────────────▶ END
+START ▶ Coordinator ─ valid ▶ Policy ▶ EmployeeData ▶ Analysis ▶ Decision ▶ Notification
+                                                                                │
+                                        resolved (APPROVE/REJECT) ──▶ Responder ─┤
+                                        escalated ──▶ manager_review ─▶ Responder ┴─▶ END
+```
+
+- **Complex orchestration** — a validation gate short-circuits invalid requests;
+  an `ESCALATE` outcome is routed through a dedicated `manager_review` node.
+- **Human-in-the-loop** — escalations pause at `AWAITING_MANAGER`; a manager
+  resumes the request via `POST /requests/{id}/manager-decision`
+  (`service.apply_manager_decision`), which records the final decision and
+  retains it in long-term memory.
+- **Enterprise REST API** (`api/app.py`, FastAPI) — `POST /requests`,
+  `GET /requests/{id}`, `POST /requests/{id}/manager-decision`,
+  `GET /approvals/pending`, `GET /employees/{id}/balances|history`, `GET /health`.
+  Interactive docs at `/docs`.
+- **Monitoring dashboard** (`frontend/dashboard.py`, Streamlit) — submit
+  requests and watch the agent trace, coordination bus and recalled memory;
+  work the manager approval queue; inspect balances and history.
+- **Deployment** — `Dockerfile` + `docker-compose.yml` run the API and dashboard
+  over a shared SQLite volume; see `deploy/CLOUD.md` for Azure/AWS/GCP notes.
+- **Performance** — `python -m perf.benchmark` reports throughput and
+  avg/p50/p95 latency; `tests/test_performance.py` guards against regressions.
+
 ## Configuration
 
 Copy `.env.example` to `.env`. Defaults work offline with no keys.
@@ -116,5 +166,4 @@ Copy `.env.example` to `.env`. Defaults work offline with no keys.
 | 1 | Agent foundation: LangChain setup, 7 agents, prompts, workflow, CLI + tests | ✅ done |
 | 2 | Tool integration: `@tool` schemas, intelligent tool selection, API connectors, exception handling, action-accuracy validation | ✅ done |
 | 3 | Coordination & memory: business-role agents, inter-agent bus, short-term + long-term memory, context-aware decisions | ✅ done |
-| 4 | LangGraph workflow, human-in-the-loop manager approval, FastAPI layer | ⏳ planned |
-| 5 | Streamlit dashboard, observability | ⏳ planned |
+| 4 | Workflow automation & deployment: LangGraph orchestration, human-in-the-loop manager approval, FastAPI REST layer, Streamlit dashboard, Docker/compose deployment, performance benchmark | ✅ done |

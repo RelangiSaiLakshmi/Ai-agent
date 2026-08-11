@@ -19,7 +19,11 @@ from database.seed import seed
 from llm import get_llm
 from schemas.state import LeaveRequest, LeaveState
 from utils.config import settings
-from workflows import run_leave_workflow
+from workflows import run_leave_graph, run_leave_workflow
+
+# Milestone 4 runs requests through the LangGraph orchestration graph by default;
+# --sequential falls back to the equivalent Milestone 1/3 linear runner.
+_USE_GRAPH = True
 
 # Built-in scenarios that exercise each decision path against the seed data.
 SCENARIOS = {
@@ -68,8 +72,10 @@ def _print_result(state: LeaveState) -> None:
 
 def _run(request: LeaveRequest) -> LeaveState:
     llm = get_llm()
-    print(f"\n### Running workflow  (LLM provider: {llm.provider} / {llm.model})")
-    state = run_leave_workflow(request, llm)
+    runner = run_leave_graph if _USE_GRAPH else run_leave_workflow
+    orchestrator = "LangGraph graph" if _USE_GRAPH else "sequential runner"
+    print(f"\n### Running workflow  (LLM: {llm.provider}/{llm.model}, orchestrator: {orchestrator})")
+    state = runner(request, llm)
     _print_result(state)
     return state
 
@@ -85,7 +91,14 @@ def main() -> None:
     parser.add_argument("--start", help="start date YYYY-MM-DD")
     parser.add_argument("--end", help="end date YYYY-MM-DD")
     parser.add_argument("--reason", default="")
+    parser.add_argument(
+        "--sequential", action="store_true",
+        help="use the Milestone 1/3 sequential runner instead of the LangGraph graph",
+    )
     args = parser.parse_args()
+
+    global _USE_GRAPH
+    _USE_GRAPH = not args.sequential
 
     if args.init_db:
         seed()

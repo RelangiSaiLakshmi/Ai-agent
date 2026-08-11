@@ -86,6 +86,51 @@ def list_employees(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+def fetch_request(conn: sqlite3.Connection, request_id: str) -> dict[str, Any] | None:
+    row = conn.execute(
+        "SELECT * FROM leave_requests WHERE request_id = ?", (request_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def fetch_latest_decision(conn: sqlite3.Connection, request_id: str) -> dict[str, Any] | None:
+    """The most recent decision for a request (an escalation may be followed by
+    a manager decision; this returns the effective/latest one)."""
+    row = conn.execute(
+        """
+        SELECT * FROM decisions
+        WHERE request_id = ?
+        ORDER BY created_at DESC, rowid DESC
+        LIMIT 1
+        """,
+        (request_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def fetch_all_balances(conn: sqlite3.Connection, employee_id: str) -> list[dict[str, Any]]:
+    rows = conn.execute(
+        "SELECT * FROM leave_balances WHERE employee_id = ? ORDER BY leave_type",
+        (employee_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_requests_by_status(conn: sqlite3.Connection, status: str) -> list[dict[str, Any]]:
+    """Requests in a given status, newest first (backs the manager approval queue)."""
+    rows = conn.execute(
+        """
+        SELECT r.*, e.name AS employee_name, e.manager_id AS manager_id
+        FROM leave_requests r
+        LEFT JOIN employees e ON e.employee_id = r.employee_id
+        WHERE r.status = ?
+        ORDER BY r.created_at DESC, r.rowid DESC
+        """,
+        (status,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 # ── Write helpers ───────────────────────────────────────────────────────────
 
 def save_request(conn: sqlite3.Connection, req: dict[str, Any]) -> None:
