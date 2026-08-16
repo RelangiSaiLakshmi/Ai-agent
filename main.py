@@ -12,6 +12,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+from datetime import date, timedelta
 from pathlib import Path
 
 from database.db import get_connection, list_employees
@@ -25,11 +26,32 @@ from workflows import run_leave_graph, run_leave_workflow
 # --sequential falls back to the equivalent Milestone 1/3 linear runner.
 _USE_GRAPH = True
 
+
+def _future(days_ahead: int, span: int = 2) -> tuple[str, str]:
+    """A weekday-safe (start, end) a comfortable number of business days ahead.
+
+    Dates are computed relative to *today* so the demo satisfies notice periods
+    and never falls in the past — hardcoded dates would silently break the
+    APPROVE path once the calendar moved past them.
+    """
+    def _weekday(d: date) -> date:
+        while d.weekday() >= 5:
+            d += timedelta(days=1)
+        return d
+
+    start = _weekday(date.today() + timedelta(days=days_ahead))
+    end = _weekday(start + timedelta(days=span))
+    return start.isoformat(), end.isoformat()
+
+
 # Built-in scenarios that exercise each decision path against the seed data.
+#   approve : E001 casual  — ample balance, enough notice        -> APPROVE
+#   reject  : E002 earned  — only 1 day left, needs 3            -> REJECT (balance)
+#   escalate: E003 earned  — ample balance, policy needs manager -> ESCALATE
 SCENARIOS = {
-    "approve": LeaveRequest("E001", "casual", "2026-08-17", "2026-08-19", "Family function"),
-    "reject": LeaveRequest("E002", "earned", "2026-08-17", "2026-08-21", "Vacation"),
-    "escalate": LeaveRequest("E003", "earned", "2026-08-24", "2026-08-26", "Personal"),
+    "approve": LeaveRequest("E001", "casual", *_future(21, 2), "Family function"),
+    "reject": LeaveRequest("E002", "earned", *_future(21, 3), "Vacation"),
+    "escalate": LeaveRequest("E003", "earned", *_future(25, 2), "Personal"),
 }
 
 

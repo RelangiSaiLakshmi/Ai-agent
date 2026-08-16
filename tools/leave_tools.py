@@ -53,6 +53,14 @@ def get_policy(leave_type: str, db_path: str | None = None) -> dict[str, Any] | 
         conn.close()
 
 
+def list_policies(db_path: str | None = None) -> list[dict[str, Any]]:
+    conn = db.get_connection(db_path)
+    try:
+        return db.list_policies(conn)
+    finally:
+        conn.close()
+
+
 def get_request(request_id: str, db_path: str | None = None) -> dict[str, Any] | None:
     conn = db.get_connection(db_path)
     try:
@@ -105,5 +113,16 @@ def record_decision(decision: dict[str, Any], db_path: str | None = None) -> Non
     conn = db.get_connection(db_path)
     try:
         db.save_decision(conn, decision)
+    finally:
+        conn.close()
+
+
+def add_leave_usage(
+    employee_id: str, leave_type: str, days: float, db_path: str | None = None
+) -> None:
+    """Deduct approved leave from the employee's balance (increments used_days)."""
+    conn = db.get_connection(db_path)
+    try:
+        db.add_balance_usage(conn, employee_id, leave_type, days)
     finally:
         conn.close()

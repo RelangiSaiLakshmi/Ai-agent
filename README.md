@@ -140,9 +140,13 @@ START ▶ Coordinator ─ valid ▶ Policy ▶ EmployeeData ▶ Analysis ▶ Dec
   `GET /requests/{id}`, `POST /requests/{id}/manager-decision`,
   `GET /approvals/pending`, `GET /employees/{id}/balances|history`, `GET /health`.
   Interactive docs at `/docs`.
-- **Monitoring dashboard** (`frontend/dashboard.py`, Streamlit) — submit
-  requests and watch the agent trace, coordination bus and recalled memory;
-  work the manager approval queue; inspect balances and history.
+- **Role-based web app** (`frontend/dashboard.py`, Streamlit) — a login gate
+  with two experiences: **employees** raise a request and see only their own
+  outcome, status and history (internals hidden); **managers** get a separate
+  approvals screen scoped to their own team, with the AI's decision analysis
+  (recommendation, rationale, criteria) to inform each approve/reject, plus a
+  team balances/history view. Demo logins (password `demo123`): employees
+  `E001`–`E004`, managers `M001` (Engineering) / `M002` (Sales).
 - **Deployment** — `Dockerfile` + `docker-compose.yml` run the API and dashboard
   over a shared SQLite volume; see `deploy/CLOUD.md` for Azure/AWS/GCP notes.
 - **Performance** — `python -m perf.benchmark` reports throughput and

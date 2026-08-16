@@ -63,6 +63,12 @@ def list_employees() -> list[dict]:
     return service.list_employees()
 
 
+@app.get("/policies", tags=["policies"])
+def list_policies() -> list[dict]:
+    """The leave policy rules the agents enforce (max days, notice, docs, etc.)."""
+    return service.list_policies()
+
+
 @app.get("/employees/{employee_id}/balances", tags=["employees"])
 def employee_balances(employee_id: str) -> list[dict]:
     try:

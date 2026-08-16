@@ -79,6 +79,12 @@ def fetch_policy(conn: sqlite3.Connection, leave_type: str) -> dict[str, Any] | 
     return dict(row) if row else None
 
 
+def list_policies(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """All leave policy rules the agents enforce (backs the policy view)."""
+    rows = conn.execute("SELECT * FROM policy_rules ORDER BY leave_type").fetchall()
+    return [dict(r) for r in rows]
+
+
 def list_employees(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT employee_id, name, department, manager_id FROM employees ORDER BY employee_id"
@@ -111,6 +117,24 @@ def fetch_latest_decision(conn: sqlite3.Connection, request_id: str) -> dict[str
 def fetch_all_balances(conn: sqlite3.Connection, employee_id: str) -> list[dict[str, Any]]:
     rows = conn.execute(
         "SELECT * FROM leave_balances WHERE employee_id = ? ORDER BY leave_type",
+        (employee_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_requests_by_employee(conn: sqlite3.Connection, employee_id: str) -> list[dict[str, Any]]:
+    """All requests raised by one employee, newest first, with their latest
+    outcome (backs the employee's "my requests" view)."""
+    rows = conn.execute(
+        """
+        SELECT r.*,
+               (SELECT d.outcome FROM decisions d
+                WHERE d.request_id = r.request_id
+                ORDER BY d.created_at DESC, d.rowid DESC LIMIT 1) AS latest_outcome
+        FROM leave_requests r
+        WHERE r.employee_id = ?
+        ORDER BY r.created_at DESC, r.rowid DESC
+        """,
         (employee_id,),
     ).fetchall()
     return [dict(r) for r in rows]
@@ -150,6 +174,22 @@ def save_request(conn: sqlite3.Connection, req: dict[str, Any]) -> None:
 def update_request_status(conn: sqlite3.Connection, request_id: str, status: str) -> None:
     conn.execute(
         "UPDATE leave_requests SET status = ? WHERE request_id = ?", (status, request_id)
+    )
+    conn.commit()
+
+
+def add_balance_usage(
+    conn: sqlite3.Connection, employee_id: str, leave_type: str, days: float
+) -> None:
+    """Increment used_days for a leave type when a request is approved.
+
+    A no-op (0 rows) if the employee has no balance row for that type; the
+    request would not have passed the balance check without one.
+    """
+    conn.execute(
+        "UPDATE leave_balances SET used_days = used_days + ? "
+        "WHERE employee_id = ? AND leave_type = ?",
+        (days, employee_id, leave_type),
     )
     conn.commit()
 

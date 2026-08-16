@@ -41,6 +41,13 @@ class NotificationAgent(BaseAgent):
         leave_tools.set_request_status(req.request_id, new_status)
         state.status = new_status
 
+        # On an auto-approval, deduct the days from the employee's balance so it
+        # reflects the booked leave. ESCALATE defers this to the manager decision;
+        # REJECT deducts nothing.
+        if dec.outcome == Outcome.APPROVE:
+            leave_tools.add_leave_usage(req.employee_id, req.leave_type, float(req.days_span()))
+            self.log(state, f"Deducted {req.days_span()} {req.leave_type} day(s) from balance.")
+
         recipient = state.employee.email if state.employee else req.employee_id
         self.log(state, f"Decision persisted; status -> {new_status}. (mock) notified {recipient}.")
         if dec.outcome == Outcome.ESCALATE and state.employee and state.employee.manager_id:
