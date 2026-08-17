@@ -13,10 +13,6 @@ Both roles talk to the same :mod:`workflows.service` layer the REST API uses,
 so the UI and API stay in lockstep. Run it with:
 
     streamlit run frontend/dashboard.py
-
-Demo logins (password `demo123` for everyone):
-    Employees — E001 Asha · E002 Ravi · E003 Meera · E004 John
-    Managers  — M001 Priya (Engineering) · M002 Sanjay (Sales)
 """
 from __future__ import annotations
 
@@ -95,18 +91,7 @@ def login_screen() -> None:
                     st.query_params["uid"] = user["employee_id"]
                     st.rerun()
                 else:
-                    st.error("Invalid credentials. Check the demo accounts below.")
-        with st.expander("Demo accounts (password: demo123)"):
-            st.dataframe(
-                [
-                    {"ID": e["employee_id"], "Name": e["name"],
-                     "Department": e.get("department"),
-                     "Role": "Manager" if not e.get("manager_id") else "Employee"}
-                    for e in service.list_employees()
-                ],
-                use_container_width=True,
-                hide_index=True,
-            )
+                    st.error("Invalid credentials. Please check your Employee ID and password.")
 
 
 def sidebar(user: dict) -> None:
