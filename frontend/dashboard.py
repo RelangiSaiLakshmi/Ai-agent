@@ -42,7 +42,7 @@ if not settings.resolved_db_path().exists():
 
     seed()
 
-APP_TITLE = "🤖 Enterprise Workflow Platform · Leave & Decision Automation"
+APP_TITLE = "🤖 Development of Enterprise Workflow Platform with Decision Automation system"
 
 _OUTCOME_STYLE = {
     "APPROVE": ("✅", "success"),
